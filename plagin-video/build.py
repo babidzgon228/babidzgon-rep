@@ -124,9 +124,7 @@ def mix_audio(timeline, clips, total, path):
     music = audio.lofi_music(total + 0.5)
     music = music[:n] if len(music) >= n else np.pad(music, (0, n - len(music)))
     # дакинг музыки под голосом
-    env = np.abs(voice)
-    win = int(0.25 * audio.SR)
-    env = np.convolve(env, np.ones(win) / win, mode="same")
+    env = audio.moving_avg(np.abs(voice), int(0.25 * audio.SR))
     duck = 1.0 - 0.6 * np.clip(env / 0.04, 0, 1)
     music = music * 0.2 * duck
     sfx = np.zeros(n, np.float32)

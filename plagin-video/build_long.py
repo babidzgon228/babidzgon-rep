@@ -165,15 +165,16 @@ def build_timeline(vo_dur, asr, outro=2.6):
     return timeline, timeline[-1]["end"]
 
 
-def mix(timeline, total, vo_path, path):
+def mix(timeline, total, vo, path):
+    """vo — путь к файлу озвучки или уже загруженный массив (44.1 кГц, моно)."""
     n = int((total + 0.3) * audio.SR)
-    v = audio.load_audio(vo_path)
+    v = audio.load_audio(vo) if isinstance(vo, str) else vo
     voice = np.zeros(n, np.float32)
     voice[: min(n, len(v))] = v[:n]
     print("  музыка...", flush=True)
     music = audio.lofi_music(total + 0.3)
     music = music[:n] if len(music) >= n else np.pad(music, (0, n - len(music)))
-    env = np.convolve(np.abs(voice), np.ones(int(0.25 * audio.SR)) / int(0.25 * audio.SR), mode="same")
+    env = audio.moving_avg(np.abs(voice), int(0.25 * audio.SR))
     duck = 1.0 - 0.6 * np.clip(env / 0.04, 0, 1)
     music = music * 0.2 * duck
     sfx = np.zeros(n, np.float32)
@@ -183,10 +184,13 @@ def mix(timeline, total, vo_path, path):
         s = max(0, int((sc["start"] - 0.07) * audio.SR))
         sfx[s:s + len(w)] += w[: n - s]
     out = timeline[-1]
-    for i in range(7):
+    for i in range(7 if out["name"] == "outro" else 0):  # клавиши в аутро
         b = audio.blip(1200 + i * 40, 0.04, 0.03)
         s = int((out["start"] + 0.12 + i / 8) * audio.SR)
         sfx[s:s + len(b)] += b[: n - s]
+    # мягкое затухание в конце
+    fade = int(0.8 * audio.SR)
+    music[-fade:] *= np.linspace(1, 0, fade)
     audio.write_wav(path + ".voice.wav", voice)
     audio.write_wav(path + ".bed.wav", music + sfx)
     build.master_audio(path, external=True)

@@ -1607,5 +1607,47 @@ def sc_circus(t, f, dur):
     return img
 
 
+def sc_to_be_continued(t, f, dur):
+    """Финальная заставка 1-й части."""
+    img = base()
+    sunburst(img, t, "#1a1a2e", "#26264a")
+    d = drw(img)
+    pop = ease(t / 0.25)
+    ptext(d, 90, 70, "ПРОДОЛЖЕНИЕ", int(lerp(8, 15, pop)), P["white"], anchor="mm", shadow="#ff4a6a")
+    ptext(d, 90, 96, "В ЧАСТИ 2", 13, P["ag_lt"], anchor="mm", shadow=O)
+    ax = 90 + int(math.sin(t * 8) * 6)
+    ptext(d, ax, 124, "→", 22, "#ffe680", anchor="mm", shadow=O)
+    im, a = agent(40, "shades", f, arms="side")
+    paste(img, im, 30, 150 + int(abs(math.sin(t * 5)) * 3))
+    d = drw(img)
+    bx0, by0, bx1, by1 = a["body"]
+    by = 150 + int(abs(math.sin(t * 5)) * 3)
+    crown(d, 30 + (bx0 + bx1) // 2 - 10, by + by0 - 9, 20)
+    paste(img, plagin_mini(0, "o", walking=False), 116, 146, 2)
+    d = drw(img)
+    R(d, 30, 268, 150, 284, P["white"])
+    d.rectangle([30, 268, 150, 284], outline="#3ad0e0")
+    ptext(d, 40, 276, "@Plagin", 9, "#222", anchor="lm")
+    return img
+
+
+def sc_part2_title(t, f, dur):
+    """Заставка в начале 2-й части."""
+    img = base()
+    sunburst(img, t * 2, "#e8662a", "#ff9a4a")
+    d = drw(img)
+    k = ease(t / 0.3)
+    ptext(d, 90, 74, "ЧАСТЬ", 16, P["white"], anchor="mm", shadow=O)
+    ptext(d, 90, 112, "2", int(lerp(20, 48, k)), "#ffe680", anchor="mm", shadow=O)
+    im, a = agent(52, "shades", f, arms="side")
+    by = 156 + int(abs(math.sin(t * 6)) * 3)
+    paste(img, im, 54, by)
+    d = drw(img)
+    bx0, by0, bx1, by1 = a["body"]
+    sash(d, (54 + bx0 + 2, by + by0 + 16, 54 + bx1 - 2, by + by1 - 2), "СТАРОСТА")
+    crown(d, 54 + (bx0 + bx1) // 2 - 12, by + by0 - 10, 24)
+    return img
+
+
 SCENE_FUNCS = {k[3:]: v for k, v in globals().items() if k.startswith("sc_")}
 art.SCENE_FUNCS.update(SCENE_FUNCS)

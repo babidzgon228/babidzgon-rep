@@ -277,3 +277,13 @@ class ExternalVoice:
         else:
             w = [max(1, sum(ch.isalpha() for ch in t)) for t in texts]
             self.parts, self.cuts, self.expect = split_by_pauses(load_audio(path), w)
+
+
+def moving_avg(x, win):
+    """Скользящее среднее за O(N) (np.convolve на длинных треках слишком медленный)."""
+    c = np.concatenate([[0.0], np.cumsum(x, dtype=np.float64)])
+    h = win // 2
+    idx = np.arange(len(x))
+    a = np.clip(idx - h, 0, len(x))
+    b = np.clip(idx + h + 1, 0, len(x))
+    return ((c[b] - c[a]) / (b - a)).astype(np.float32)

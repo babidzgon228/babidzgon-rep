@@ -46,3 +46,12 @@ ffmpeg -i voice.mp3 -ac 1 -ar 16000 -f s16le voice16.raw
 python3 asr.py /path/vosk-model-small-ru-0.22 voice16.raw words.json
 python3 build_long.py --vo voice.mp3 --words words.json --out out/plagin_long.mp4
 ```
+
+## Две части по ≤ 3 мин (Reels / Shorts)
+
+```bash
+python3 build_parts.py --vo voice.mp3 --words words.json --split agent_pointer --outdir out
+```
+
+- `out/plagin_part1.mp4` — 2:04, заканчивается на «Староста, бл*дь!» + заставка «Продолжение в части 2»
+- `out/plagin_part2.mp4` — 2:34, начинается с заставки «Часть 2»

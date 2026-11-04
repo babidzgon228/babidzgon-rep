@@ -32,3 +32,17 @@ python3 build.py --vo elevenlabs.mp3 --out out/plagin.mp4
 # или папка с отдельными файлами 01.mp3 ... 30.mp3 (по одному на реплику)
 python3 build.py --vo vo_dir/ --out out/plagin.mp4
 ```
+
+## Длинная версия (4.5 мин) под озвучку ElevenLabs
+
+- `script_long.py` — 77 сцен и текст озвучки (восстановлен распознаванием речи)
+- `art2.py` — новые сцены: препод, декан, робот-пылесос, будильник в галстуке, коты, суд и т.д.
+- `asr.py` — распознавание озвучки с таймингами слов (Vosk, `vosk-model-small-ru-0.22`)
+- `build_long.py` — выравнивает текст по распознанным словам, режет субтитры и собирает видео
+- `out/plagin_long.mp4` — готовый ролик
+
+```bash
+ffmpeg -i voice.mp3 -ac 1 -ar 16000 -f s16le voice16.raw
+python3 asr.py /path/vosk-model-small-ru-0.22 voice16.raw words.json
+python3 build_long.py --vo voice.mp3 --words words.json --out out/plagin_long.mp4
+```

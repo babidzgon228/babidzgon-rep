@@ -20,3 +20,15 @@ python3 build.py --voice /path/to/ru_RU-ruslan-medium.onnx --out out/plagin.mp4
 
 Модель голоса (`ru_RU-ruslan-medium.onnx` + `.onnx.json`) — из набора голосов Piper (rhasspy/piper-voices).
 Чтобы поменять текст — правь `script.py`; длительность сцен подстраивается под озвучку автоматически.
+
+## Своя озвучка (ElevenLabs и т.п.)
+
+Текст для озвучки — `voiceover.txt` (30 реплик, через пустую строку).
+
+```bash
+# один общий файл — нарезается по паузам между репликами автоматически
+python3 build.py --vo elevenlabs.mp3 --out out/plagin.mp4
+
+# или папка с отдельными файлами 01.mp3 ... 30.mp3 (по одному на реплику)
+python3 build.py --vo vo_dir/ --out out/plagin.mp4
+```

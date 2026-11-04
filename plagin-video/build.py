@@ -88,8 +88,9 @@ def render_caption(cap):
 
 
 # ---------------------------------------------------------------- timeline
-def build_timeline(voice):
+def build_timeline(voice, ext=None):
     lead = 0.15
+    k = 0
     t = 0.0
     timeline = []
     clips = []
@@ -98,7 +99,11 @@ def build_timeline(voice):
         t += lead if si == 0 else 0.0
         caps = []
         for seg in segs:
-            a = voice.say(seg["say"], length_scale=seg.get("ls", DEFAULT_LS))
+            if ext is not None:
+                a = ext.parts[k]
+            else:
+                a = voice.say(seg["say"], length_scale=seg.get("ls", DEFAULT_LS))
+            k += 1
             d = len(a) / audio.SR
             clips.append((t, a))
             if seg["cap"]:
@@ -139,9 +144,9 @@ def mix_audio(timeline, clips, total, path):
     audio.write_wav(path + ".bed.wav", music + sfx)
 
 
-def master_audio(path):
+def master_audio(path, external=False):
     """Голос: эквалайзер, лёгкая компрессия и комната; плюс музыкальная подложка."""
-    vf = ("highpass=f=75,equalizer=f=180:t=q:w=1.2:g=2,equalizer=f=3200:t=q:w=1.5:g=2.5,"
+    vf = "highpass=f=70,acompressor=threshold=-20dB:ratio=2:attack=5:release=100" if external else ("highpass=f=75,equalizer=f=180:t=q:w=1.2:g=2,equalizer=f=3200:t=q:w=1.5:g=2.5,"
           "acompressor=threshold=-20dB:ratio=3:attack=4:release=90:makeup=2,"
           "aecho=0.85:0.6:18|31:0.10|0.06")
     cmd = ["ffmpeg", "-v", "error", "-y", "-i", path + ".voice.wav", "-i", path + ".bed.wav",
@@ -198,19 +203,29 @@ def render_video(timeline, total, wav, out):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--voice", required=True, help="Piper .onnx model (ru_RU)")
+    ap.add_argument("--voice", help="Piper .onnx model (ru_RU), если нет --vo")
     ap.add_argument("--out", default="out/plagin.mp4")
+    ap.add_argument("--vo", help="готовая озвучка: файл целиком или папка 01.mp3, 02.mp3...")
     ap.add_argument("--audio-only", action="store_true")
     args = ap.parse_args()
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
-    print("TTS...", flush=True)
-    v = audio.Voice(args.voice)
-    timeline, clips, total = build_timeline(v)
+    ext = v = None
+    if args.vo:
+        texts = [seg["say"] for _, segs in SCENES for seg in segs]
+        ext = audio.ExternalVoice(args.vo, texts)
+        if ext.cuts is not None:
+            print("разрезы (найдено / ожидалось по тексту), сек:")
+            for i, (c, e) in enumerate(zip(ext.cuts, ext.expect)):
+                print(f"  {i + 1:2d}|{i + 2:2d}  {c:6.2f} / {e:6.2f}  {texts[i + 1][:40]}")
+    else:
+        print("TTS...", flush=True)
+        v = audio.Voice(args.voice)
+    timeline, clips, total = build_timeline(v, ext)
     total += 0.1
     print(f"total {total:.2f}s", flush=True)
     wav = os.path.splitext(args.out)[0] + ".wav"
     mix_audio(timeline, clips, total, wav)
-    master_audio(wav)
+    master_audio(wav, external=ext is not None)
     if args.audio_only:
         return
     print("render...", flush=True)

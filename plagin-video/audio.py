@@ -183,3 +183,97 @@ def write_wav(path, x):
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes((x * 32767).astype(np.int16).tobytes())
+
+
+# ---------------------------------------------------------------- внешняя озвучка (ElevenLabs и т.п.)
+def load_audio(path):
+    """Любой аудиофайл -> float32 mono 44.1 кГц (через ffmpeg)."""
+    import subprocess
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"],
+                         check=True, capture_output=True).stdout
+    return np.frombuffer(raw, np.float32).copy()
+
+
+def _speech_runs(x, frame=0.01, min_sil=0.12):
+    """-> (энергия по кадрам, список пауз (начало, конец) в секундах)."""
+    hop = int(frame * SR)
+    n = len(x) // hop
+    e = np.sqrt(np.mean(x[: n * hop].reshape(n, hop) ** 2, axis=1) + 1e-12)
+    db = 20 * np.log10(e / (e.max() + 1e-9))
+    sil = db < -38
+    runs, i = [], 0
+    while i < n:
+        if sil[i]:
+            j = i
+            while j < n and sil[j]:
+                j += 1
+            if (j - i) * frame >= min_sil:
+                runs.append((i * frame, j * frame))
+            i = j
+        else:
+            i += 1
+    return db, runs
+
+
+def split_by_pauses(x, weights, frame=0.01):
+    """Режет один длинный файл на len(weights) кусков по паузам.
+
+    Позиция каждой границы оценивается по «чистому» времени речи (без пауз)
+    пропорционально количеству букв, затем динамическим программированием
+    выбираются паузы, лучше всего совпадающие с этими оценками (по порядку).
+    """
+    x = _trim(x, thr=0.01, pad=0)
+    total = len(x) / SR
+    db, runs = _speech_runs(x, frame)
+    speech = (db >= -38).astype(float)
+    S = np.concatenate([[0.0], np.cumsum(speech) * frame])  # время речи до кадра i
+    tot_sp = S[-1]
+    cands = [((a + b) / 2, b - a, S[min(int(a / frame), len(S) - 1)]) for a, b in runs]
+    nb = len(weights) - 1
+    cum = np.cumsum(weights)[:-1] / np.sum(weights)
+    exp_sp = cum * tot_sp
+    if len(cands) < nb:
+        cuts = list(np.interp(exp_sp, S, np.arange(len(S)) * frame))
+    else:
+        C = len(cands)
+        cost = np.array([[((exp_sp[i] - cands[j][2]) / 0.6) ** 2 - 1.5 * min(cands[j][1], 0.8)
+                          for j in range(C)] for i in range(nb)])
+        dp = np.full((nb, C), np.inf)
+        bk = np.zeros((nb, C), int)
+        dp[0] = cost[0]
+        for i in range(1, nb):
+            best, arg = np.inf, -1
+            for j in range(C):
+                if j > 0 and dp[i - 1][j - 1] < best:
+                    best, arg = dp[i - 1][j - 1], j - 1
+                if arg >= 0:
+                    dp[i][j] = best + cost[i][j]
+                    bk[i][j] = arg
+        j = int(np.argmin(dp[-1]))
+        sel = [j]
+        for i in range(nb - 1, 0, -1):
+            j = bk[i][j]
+            sel.append(j)
+        cuts = [cands[j][0] for j in reversed(sel)]
+    expect = np.interp(exp_sp, S, np.arange(len(S)) * frame)
+    edges = [0.0] + list(cuts) + [total]
+    parts = [_trim(x[int(a * SR): int(b * SR)]) for a, b in zip(edges[:-1], edges[1:])]
+    return parts, cuts, expect
+
+
+class ExternalVoice:
+    """Готовая озвучка: папка с файлами 01.mp3, 02.mp3 ... (по одному на реплику)
+    или один общий файл, который режется по паузам."""
+
+    def __init__(self, path, texts):
+        self.parts = []
+        if os.path.isdir(path):
+            files = sorted(f for f in os.listdir(path)
+                           if f.lower().endswith((".mp3", ".wav", ".m4a", ".ogg", ".flac")))
+            if len(files) != len(texts):
+                raise SystemExit(f"в папке {len(files)} файлов, а реплик {len(texts)}")
+            self.parts = [_trim(load_audio(os.path.join(path, f))) for f in files]
+            self.cuts = None
+        else:
+            w = [max(1, sum(ch.isalpha() for ch in t)) for t in texts]
+            self.parts, self.cuts, self.expect = split_by_pauses(load_audio(path), w)

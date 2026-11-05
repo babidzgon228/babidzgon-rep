@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
 import art  # noqa: E402
+import plagin2  # noqa: E402,F401  (новый внешний вид Плагина — до art2/art3)
 import art2  # noqa: E402,F401
 import art3  # noqa: E402,F401
 import audio  # noqa: E402

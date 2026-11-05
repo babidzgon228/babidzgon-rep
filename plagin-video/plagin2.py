@@ -5,7 +5,7 @@
 Импорт этого модуля ПОДМЕНЯЕТ art.plagin_bust / art.plagin_mini.
 Импортировать до art2/art3, чтобы они подхватили новый спрайт.
 """
-import random
+import random  # noqa: F401
 
 from PIL import Image
 
@@ -27,33 +27,28 @@ TEE_SH = "#d4d2da"
 
 
 def _messy_hair(d, cx, ty, t, fringe=True):
-    rnd = random.Random(7)
-    # объём
-    d.chord([cx - 20, ty - 2, cx + 20, ty + 32], 180, 360, fill=O)
-    d.chord([cx - 19, ty - 1, cx + 19, ty + 31], 180, 360, fill=HAIR)
-    # торчащие пряди сверху
-    for i in range(9):
-        x = cx - 16 + i * 4
-        h = rnd.randint(3, 8)
-        sway = 1 if (i + int(t * 2)) % 4 == 0 else 0
-        d.polygon([(x - 2, ty + 4), (x + 2, ty + 4), (x + 1 + sway, ty - h), (x - 1 + sway, ty - h + 1)], fill=HAIR)
-        d.point((x + sway, ty - h), fill=HAIR_LT)
-    # пряди-текстура
-    for _ in range(60):
-        x = rnd.randint(cx - 17, cx + 17)
-        y = rnd.randint(ty, ty + 13)
-        if ((x - cx) / 18.5) ** 2 + ((y - (ty + 15)) / 15.5) ** 2 < 1:
-            d.line([(x, y), (x + rnd.choice((-2, 2)), y + 2)], fill=HAIR_DK if rnd.random() < 0.5 else HAIR_LT)
-    # бока
-    R(d, cx - 19, ty + 14, cx - 15, ty + 26, HAIR)
-    R(d, cx + 15, ty + 14, cx + 19, ty + 24, HAIR)
+    """Аккуратная причёска: объём сверху, уложенная набок чёлка, ровные пряди."""
+    # объём (чуть приподнят надо лбом — «квифф»)
+    d.chord([cx - 20, ty - 3, cx + 20, ty + 32], 180, 360, fill=O)
+    d.chord([cx - 19, ty - 2, cx + 19, ty + 31], 180, 360, fill=HAIR)
+    E(d, cx - 10, ty - 5, cx + 14, ty + 8, O)
+    E(d, cx - 9, ty - 4, cx + 13, ty + 7, HAIR)
+    # блик на укладке
+    d.arc([cx - 8, ty - 2, cx + 12, ty + 10], 200, 320, fill=HAIR_LT)
+    d.arc([cx - 14, ty + 1, cx + 6, ty + 16], 210, 300, fill=HAIR_LT)
+    # ровные пряди, зачёсанные в одну сторону
+    for k in range(6):
+        x0 = cx - 14 + k * 5
+        d.line([(x0, ty + 12), (x0 + 5, ty + 3)], fill=HAIR_DK)
+    # аккуратные виски
+    R(d, cx - 19, ty + 14, cx - 16, ty + 24, HAIR)
+    R(d, cx + 16, ty + 14, cx + 19, ty + 22, HAIR)
+    R(d, cx - 19, ty + 22, cx - 18, ty + 24, HAIR_DK)
     if fringe:
-        # чёлка набок: падает на лоб слева направо
-        d.polygon([(cx - 16, ty + 14), (cx + 8, ty + 12), (cx + 4, ty + 20), (cx - 2, ty + 18),
-                   (cx - 8, ty + 23), (cx - 13, ty + 20)], fill=HAIR)
-        d.line([(cx - 10, ty + 16), (cx - 6, ty + 22)], fill=HAIR_DK)
-        d.line([(cx - 2, ty + 15), (cx, ty + 19)], fill=HAIR_DK)
-        d.line([(cx + 3, ty + 14), (cx + 5, ty + 17)], fill=HAIR_LT)
+        # чёлка уложена набок и не падает на глаза
+        d.polygon([(cx - 17, ty + 15), (cx + 12, ty + 11), (cx + 6, ty + 16), (cx - 6, ty + 18), (cx - 15, ty + 19)],
+                  fill=HAIR)
+        d.line([(cx - 12, ty + 17), (cx + 6, ty + 13)], fill=HAIR_DK)
 
 
 def plagin_bust(expr="neutral", pose="rest", t=0.0, blink=True):
@@ -199,9 +194,7 @@ def plagin_mini(frame=0, expr="tired", walking=True):
     d.chord([4, 6 + y, 17, 18 + y], 10, 170, fill=BEARD)
     R(d, 8, 12 + y, 13, 13 + y, SKIN)
     d.chord([3, 0 + y, 18, 14 + y], 180, 360, fill=HAIR)
-    for i in range(5):
-        x = 4 + i * 3
-        R(d, x, -1 + y + (i % 2), x + 1, 1 + y, HAIR)
+    E(d, 6, -1 + y, 15, 4 + y, HAIR)
     R(d, 5, 6 + y, 11, 7 + y, HAIR)  # чёлка набок
     d.point((7, 3 + y), fill=HAIR_LT)
     d.point((12, 2 + y), fill=HAIR_DK)

@@ -22,7 +22,7 @@ from script_long import SCENES
 
 CENSOR = {
     "блядь": "бл*дь", "блять": "бл*ть", "сука": "с*ка", "нихуя": "них*я",
-    "охуенные": "ох*енные", "пиздец": "п*здец",
+    "охуенные": "ох*енные", "пиздец": "п*здец", "нахуя": "нах*я", "охуели": "ох*ели",
 }
 MAX_CHUNK = 30  # символов в одном субтитре
 
@@ -139,8 +139,8 @@ def caption_text(words, idxs):
     return " ".join(out)
 
 
-def build_timeline(vo_dur, asr, outro=2.6):
-    entries = [(name, tokenize(text)) for name, text in SCENES]
+def build_timeline(vo_dur, asr, outro=2.6, scenes=None):
+    entries = [(name, tokenize(text)) for name, text in (scenes or SCENES)]
     starts, ends, ratio = align(entries, asr)
     print(f"совпадение текста с распознанным: {ratio:.0%}")
     timeline = []

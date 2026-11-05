@@ -33,13 +33,60 @@ FPS = 30
 OW, OH = 1080, 1920
 GAP = 0.35  # пауза между файлами озвучки
 PHOTO_DIR = os.path.join(HERE, "photos")
-# сцена -> (файл, x, y, w, h) в пикселях финального кадра (без белой рамки 12px)
+# сцена -> слайды (файл или None = в этот отрезок фото не показывать); время сцены делится поровну
 PHOTOS = {
-    "photo_campus": ("1_campus.jpg", 28, 330, 1000, 562),
-    "photo_skyscrapers": ("2_skyscrapers.jpg", 78, 260, 900, 720),
-    "photo_temples": ("3_temples.jpg", 78, 260, 900, 720),
-    "photo_sea": ("4_sea.jpg", 118, 170, 820, 1084),
+    "photo_campus": ["1_campus.jpg"],
+    "photo_skyscrapers": ["2_skyscrapers.jpg"],
+    "photo_temples": ["3_temples.jpg", "cn_temple.jpg"],
+    "photo_sea": ["4_sea.jpg"],
+    # Гонконг
+    "hk_skyline": ["hk_07.jpg", "hk_01.jpg"],
+    "hk_people": ["hk_02.jpg", "hk_13.jpg"],
+    "smalltalk": ["hk_10.jpg", "hk_06.jpg"],
+    "hk_expensive": ["hk_03.jpg", "hk_04.jpg", "hk_14.jpg"],
+    "hk_skyline2": ["hk_08.jpg", "hk_09.jpg", "hk_11.jpg", "hk_12.jpg"],
+    "wallet_cry": ["hk_05.jpg", None],
 }
+# особые рамки (x, y, w, h) для старых фото; остальные — по ориентации
+PHOTO_RECTS = {
+    "1_campus.jpg": (28, 330, 1000, 562),
+    "2_skyscrapers.jpg": (78, 260, 900, 720),
+    "3_temples.jpg": (78, 260, 900, 720),
+    "4_sea.jpg": (118, 170, 820, 1084),
+}
+# вырезанные фразы: индекс файла озвучки -> [(начало, конец), ...] в секундах этого файла
+CUTS = {
+    0: [(90.68, 94.30)],                    # «Зато, блядь, свой. Родной. Единственный.»
+    1: [(82.90, 85.10), (191.08, 193.50)],  # «Так что письки в безопасности», «Пары, блядь, ...»
+}
+
+
+def photo_rect(fname):
+    if fname in PHOTO_RECTS:
+        return PHOTO_RECTS[fname]
+    from PIL import Image
+    w, h = Image.open(os.path.join(PHOTO_DIR, fname)).size
+    if h > w:
+        return (150, 190, 780, 1040)
+    return (40, 330, 1000, 750)
+
+
+def apply_cuts(v, words, cuts):
+    """Вырезает куски из озвучки (с 10-мс переходом) и сдвигает тайминги слов."""
+    sr = audio.SR
+    fade = int(0.01 * sr)
+    for a, b in sorted(cuts, reverse=True):
+        ia, ib = int(a * sr), int(b * sr)
+        head, tail = v[:ia].copy(), v[ib:].copy()
+        head[-fade:] *= np.linspace(1, 0, fade)
+        tail[:fade] *= np.linspace(0, 1, fade)
+        v = np.concatenate([head, tail])
+        d = b - a
+        words = [w for w in words if not (a - 0.05 <= w["start"] < b)]
+        words = [dict(w, start=w["start"] - d, end=w["end"] - d) if w["start"] >= b else w for w in words]
+    return v, words
+
+
 CAP_Y = 1530
 FONT_DIR = "/usr/share/fonts/opentype/inter"
 
@@ -97,23 +144,31 @@ def render(timeline, voice, out):
     ass = base + ".ass"
     write_ass(timeline, ass)
 
-    photo_scenes = [sc for sc in timeline if sc["name"] in PHOTOS]
+    slots = []  # (файл, начало, конец)
+    for sc in timeline:
+        files = PHOTOS.get(sc["name"])
+        if not files:
+            continue
+        step = (sc["end"] - sc["start"]) / len(files)
+        for i, fn in enumerate(files):
+            if fn:
+                slots.append((fn, sc["start"] + i * step, sc["start"] + (i + 1) * step))
     cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{art.W}x{art.H}",
            "-r", str(FPS), "-i", "-", "-i", wav]
-    for sc in photo_scenes:
-        cmd += ["-i", os.path.join(PHOTO_DIR, PHOTOS[sc["name"]][0])]
+    for fn, _, _ in slots:
+        cmd += ["-i", os.path.join(PHOTO_DIR, fn)]
     fc = [f"[0:v]xbr=4,scale={OW}:{OH}:flags=lanczos[v0]"]
-    for k, sc in enumerate(photo_scenes):
-        _, x, y, w, h = PHOTOS[sc["name"]]
-        s, e = sc["start"], sc["end"]
+    for k, (fn, s, e) in enumerate(slots):
+        x, y, w, h = photo_rect(fn)
         n = int((e - s) * FPS) + 2
         fc.append(
             f"[{k + 2}:v]scale={2 * w}:{2 * h}:force_original_aspect_ratio=increase:flags=lanczos,"
-            f"crop={2 * w}:{2 * h},unsharp=5:5:0.6,"
-            f"zoompan=z='1+0.0005*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={n}:s={w}x{h}:fps={FPS},"
+            f"crop={2 * w}:{2 * h},unsharp=5:5:0.4,"
+            f"zoompan=z='1+0.0006*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={n}:s={w}x{h}:fps={FPS},"
             f"pad={w + 24}:{h + 24}:12:12:white,setpts=PTS-STARTPTS+{s:.3f}/TB[p{k}]")
         fc.append(f"[v{k}][p{k}]overlay={x - 12}:{y - 12}:enable='between(t,{s:.3f},{e:.3f})'"
                   f":eof_action=pass[v{k + 1}]")
+    photo_scenes = slots
     last = f"v{len(photo_scenes)}"
     fc.append(f"[{last}]ass={ass}:fontsdir={FONT_DIR}[vout]")
     cmd += ["-filter_complex", ";".join(fc), "-map", "[vout]", "-map", "1:a",
@@ -171,9 +226,9 @@ def main():
     ap.add_argument("--plan-only", action="store_true")
     args = ap.parse_args()
     voices, words, off = [], [], 0.0
-    for vp, wp in zip(args.vo, args.words):
-        v = audio.load_audio(vp)
-        for w in json.load(open(wp)):
+    for fi, (vp, wp) in enumerate(zip(args.vo, args.words)):
+        v, ws = apply_cuts(audio.load_audio(vp), json.load(open(wp)), CUTS.get(fi, []))
+        for w in ws:
             words.append(dict(w, start=w["start"] + off, end=w["end"] + off))
         voices.append(v)
         voices.append(np.zeros(int(GAP * audio.SR), np.float32))

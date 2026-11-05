@@ -1089,7 +1089,6 @@ def sc_hk_skyline(t, f, dur, love=True):
     d = drw(img)
     if love:
         hearts(d, t, 90, 200, 6)
-    ptext(d, 90, 270, "ГОНКОНГ", 12, "#ffe680", anchor="mm", shadow=O)
     return img
 
 

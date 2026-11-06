@@ -620,6 +620,24 @@ def setting_options_keyboard(field: str, s: UserSettings) -> InlineKeyboardMarku
     return kb(*rows)
 
 
+def setting_input_keyboard(field: str) -> InlineKeyboardMarkup:
+    """Под запросом своего значения настройки: назад к вариантам."""
+    return kb([btn("◀️ Назад", SetCb(f=field)), btn("⚙️ Настройки", SetCb(f="main"))])
+
+
+def timetable_upload_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
+    return kb([btn("✖️ Отмена", TtCb(a="impno", o=offset))])
+
+
+def timetable_no_ai_keyboard(offset: int = 0) -> InlineKeyboardMarkup:
+    return kb([btn("➕ Добавить пару", TtCb(a="add", o=offset)), btn("◀️ Назад", TtCb(a="w", o=offset))])
+
+
+def checkin_done_keyboard() -> InlineKeyboardMarkup:
+    """После ответа на чек-ин: быстрый стоп и экран трекера."""
+    return kb([btn("⏹ Стоп", TrackCb(a="stop")), btn("⏱ Трекер", TrackCb(a="menu"))])
+
+
 # ================================================================ ИИ и свободный текст
 
 def ai_help_keyboard(*, available: bool, enabled: bool) -> InlineKeyboardMarkup:
@@ -627,7 +645,7 @@ def ai_help_keyboard(*, available: bool, enabled: bool) -> InlineKeyboardMarkup:
         return kb([btn("🤖 Включить ИИ", AiCb(a="on"))])
     if not available:
         return kb(nav_row(("➕ Добавить задачу", "add"), ("📅 Сегодня", "today")))
-    return kb([btn("🧹 Очистить контекст", AiCb(a="clear"))])
+    return kb([btn("🧹 Очистить контекст", AiCb(a="clear")), btn("⏸ Выключить ИИ", AiCb(a="off"))])
 
 
 def free_text_keyboard() -> InlineKeyboardMarkup:

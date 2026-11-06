@@ -82,6 +82,8 @@ class UserSettings:
     focus_peak: str = "morning"         # morning / afternoon / evening — пик продуктивности
     commute_min: int = 0                # дорога до универа (буфер перед первой парой)
     quiet: bool = False                 # тихий режим: без чек-инов и напоминаний плана
+    lang: str = "ru"                    # язык интерфейса: ru / en / zh
+    card_theme: str = "auto"            # тема PNG-карточки: auto (по времени суток) / light / dark
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> "UserSettings":

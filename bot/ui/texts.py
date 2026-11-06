@@ -1005,6 +1005,26 @@ def tracker_stopped(act: Activity, tz_name: str) -> str:
                       "Насколько продуктивно было?"])
 
 
+def tracker_rated(act: Activity, tz_name: str, rating: int | None) -> str:
+    """Итог записи трекера после оценки (или пропуска оценки)."""
+    end = act.ended_at or now_utc()
+    mins = max(0, int((end - act.started_at).total_seconds() // 60))
+    s, e = to_local(act.started_at, tz_name), to_local(end, tz_name)
+    desc = f" — {esc(truncate(act.description, 50))}" if act.description else ""
+    lines = [title("✅", "Записал"),
+             f"{activity_label(act.category)}{desc}",
+             f"🕐 {s:%H:%M}{DASH}{e:%H:%M} · <b>{human_duration(mins)}</b>"]
+    if rating:
+        lines.append(f"Продуктивность: {RATING_EMOJI.get(rating, '')} <b>{rating}/5</b>")
+    else:
+        lines.append("<i>Без оценки</i>")
+    return "\n".join(lines)
+
+
+def past_intro() -> str:
+    return "\n".join([title("➕", "Записать прошедшее"), SEP, "Чем занимался? Выбери категорию ⬇️"])
+
+
 def past_prompt(cat: str, step: str, ago: int | None = None) -> str:
     lines = [title("➕", "Записать прошедшее"), f"{activity_label(cat)}", SEP]
     if step == "ago":

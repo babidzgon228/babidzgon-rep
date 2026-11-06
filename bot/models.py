@@ -84,6 +84,10 @@ class UserSettings:
     quiet: bool = False                 # тихий режим: без чек-инов и напоминаний плана
     lang: str = "ru"                    # язык интерфейса: ru / en / zh
     card_theme: str = "auto"            # тема PNG-карточки: auto (по времени суток) / light / dark
+    modules: dict[str, bool] = field(default_factory=dict)  # вкл/выкл модулей (bot/modules/registry.py)
+    dnd_start: str | None = None        # тихие часы: начало "HH:MM" (None — выключены)
+    dnd_end: str | None = None          # тихие часы: конец "HH:MM"
+    onboarded: bool = False             # прошёл ли онбординг с выбором модулей
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> "UserSettings":

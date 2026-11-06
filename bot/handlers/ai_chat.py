@@ -126,7 +126,7 @@ async def free_text(message: Message, user: User, state: FSMContext, bot: Bot, a
         async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
             answer = await ai.chat(user, text)
     except Exception:  # noqa: BLE001
-        log.exception("ai.chat failed")
+        log.warning("ai.chat failed", exc_info=True)
         await state.update_data({PENDING_TEXT: text[:500]})
         await reply(message, AI_ERROR, kb.free_text_keyboard())
         return

@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 from bot.db import Database
-from bot.handlers.common import MenuButton, ack, drop_markup, reply, show
+from bot.handlers.common import MenuButton, ack, drop_markup, show
 from bot.models import ACTIVITY_CATEGORIES, Activity, User
 from bot.timeutil import day_bounds_utc, human_duration, local_today, now_utc
 from bot.ui import keyboards as kb

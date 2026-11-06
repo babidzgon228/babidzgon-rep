@@ -1285,7 +1285,7 @@ def ai_help(*, available: bool, enabled: bool) -> str:
 
 def ai_reply(text: str, actions: Iterable[str] = ()) -> str:
     body = sanitize_html(text).strip() or "🤔"
-    acts = [esc(a) for a in actions if a]
+    acts = [sanitize_html(a) for a in actions if a]  # ИИ уже экранирует названия — не экранируем повторно
     if acts:
         body += "\n\n<blockquote>" + "\n".join(acts) + "</blockquote>"
     return body

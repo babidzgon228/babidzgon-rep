@@ -10,6 +10,7 @@ from bot.config import Config
 from bot.db import Database
 from bot.models import UserSettings
 from bot.services.timetable import seed_from_file_if_empty
+from bot.services.tzrules import sync_user_tz
 
 
 class UserMiddleware(BaseMiddleware):
@@ -47,6 +48,7 @@ class UserMiddleware(BaseMiddleware):
         if created:
             await seed_from_file_if_empty(self.db, user, self.config.timetable_path)
             user = await self.db.get_user(user.id)
+        await sync_user_tz(self.db, user)  # автосмена пояса Шэньчжэнь/Москва по датам
         data["user"] = user
         data["user_created"] = created
         return await handler(event, data)

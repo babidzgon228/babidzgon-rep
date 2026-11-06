@@ -61,9 +61,14 @@ WEEKDAYS_FULL = ["Понедельник", "Вторник", "Среда", "Че
 
 @dataclass
 class UserSettings:
-    tz: str = "Europe/Moscow"
+    tz: str = "Europe/Moscow"           # ТЕКУЩИЙ часовой пояс (его используют все модули)
+    # Автосмена пояса по датам: tz_rules = [{"from": "MM-DD", "to": "MM-DD", "tz": "Asia/Shanghai",
+    # "label": "Шэньчжэнь"}], вне правил — home_tz. См. bot/services/tzrules.py
+    tz_auto: bool = False
+    home_tz: str = "Europe/Moscow"
+    tz_rules: list[dict[str, str]] = field(default_factory=list)
     wake_time: str = "07:30"            # подъём
-    sleep_time: str = "23:30"           # отбой
+    sleep_time: str = "23:30"           # отбой; может быть после полуночи ("00:30") — это ещё «тот же» день
     morning_brief_time: str = "07:45"   # утренняя сводка
     evening_plan_time: str = "21:30"    # вечерний отчёт + план на завтра
     checkin_enabled: bool = True        # спрашивать «что делаешь?»
@@ -73,6 +78,7 @@ class UserSettings:
     plan_reminders: bool = True         # напоминать о блоках принятого плана
     ai_enabled: bool = True
     semester_start: str | None = None   # "YYYY-MM-DD": неделя с этой датой — нечётная (1-я)
+    semester_end: str | None = None     # "YYYY-MM-DD": после этой даты пары не показываются (каникулы)
     focus_peak: str = "morning"         # morning / afternoon / evening — пик продуктивности
     commute_min: int = 0                # дорога до универа (буфер перед первой парой)
     quiet: bool = False                 # тихий режим: без чек-инов и напоминаний плана

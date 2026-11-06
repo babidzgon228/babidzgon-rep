@@ -48,8 +48,17 @@ def week_parity(d: date, settings: UserSettings) -> str:
     return "odd" if n % 2 == 1 else "even"
 
 
+def in_semester(d: date, settings: UserSettings) -> bool:
+    """Идёт ли учёба в дату d (между semester_start и semester_end, если заданы)."""
+    if settings.semester_start and d < date.fromisoformat(settings.semester_start):
+        return False
+    if settings.semester_end and d > date.fromisoformat(settings.semester_end):
+        return False
+    return True
+
+
 def lesson_applies(lesson: Lesson, d: date, settings: UserSettings) -> bool:
-    if lesson.weekday != d.weekday():
+    if lesson.weekday != d.weekday() or not in_semester(d, settings):
         return False
     return lesson.parity == "all" or lesson.parity == week_parity(d, settings)
 
@@ -122,13 +131,24 @@ async def import_lessons(db, user_id: int, lessons: list[dict[str, Any]], replac
     return len(lessons)
 
 
+async def apply_profile_settings(db, user: User, meta: dict[str, Any]) -> None:
+    """Применяет блок `settings:` и даты семестра из YAML-профиля к пользователю."""
+    changes: dict[str, Any] = {}
+    for key in ("semester_start", "semester_end"):
+        if meta.get(key):
+            changes[key] = str(meta[key])
+    known = UserSettings.__dataclass_fields__
+    for key, value in (meta.get("settings") or {}).items():
+        if key in known:
+            changes[key] = value
+    if changes:
+        user.settings = await db.update_settings(user.id, **changes)
+
+
 async def seed_from_file_if_empty(db, user: User, path: str | Path) -> int:
-    """При первом запуске заливает расписание из data/timetable.yaml."""
+    """При первом запуске заливает профиль и расписание из data/timetable.yaml."""
     if await db.list_lessons(user.id):
         return 0
     meta, lessons = load_timetable_file(path)
-    if meta.get("semester_start") and not user.settings.semester_start:
-        user.settings = await db.update_settings(user.id, semester_start=str(meta["semester_start"]))
-    if meta.get("commute_min") is not None and not user.settings.commute_min:
-        user.settings = await db.update_settings(user.id, commute_min=int(meta["commute_min"]))
+    await apply_profile_settings(db, user, meta)
     return await import_lessons(db, user.id, lessons)

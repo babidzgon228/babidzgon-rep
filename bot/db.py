@@ -13,13 +13,19 @@ import aiosqlite
 
 from bot.models import (
     Activity,
+    AttendanceRecord,
     DayPlan,
     Event,
+    Flashcard,
+    Grade,
+    Habit,
+    JournalEntry,
     Lesson,
     PlanItem,
     Task,
     User,
     UserSettings,
+    WellbeingEntry,
 )
 from bot.timeutil import iso, now_utc, parse_iso
 
@@ -109,6 +115,117 @@ CREATE TABLE IF NOT EXISTS user_state (
     key TEXT NOT NULL,
     value TEXT,
     PRIMARY KEY (user_id, key)
+);
+-- ---------------------------------------------------------------- учёба
+CREATE TABLE IF NOT EXISTS homework (
+    task_id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    lesson_weekday INTEGER,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_homework_user ON homework(user_id, subject);
+CREATE TABLE IF NOT EXISTS attendance (
+    user_id INTEGER NOT NULL,
+    lesson_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    subject TEXT NOT NULL DEFAULT '',
+    marked_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, lesson_id, date)
+);
+CREATE INDEX IF NOT EXISTS ix_attendance_user_date ON attendance(user_id, date);
+CREATE TABLE IF NOT EXISTS grades (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    value REAL NOT NULL,
+    max_value REAL NOT NULL DEFAULT 5,
+    weight REAL NOT NULL DEFAULT 1,
+    kind TEXT NOT NULL DEFAULT '',
+    note TEXT,
+    date TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_grades_user_subject ON grades(user_id, subject);
+-- ---------------------------------------------------------------- карточки
+CREATE TABLE IF NOT EXISTS flashcards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    front TEXT NOT NULL,
+    back TEXT NOT NULL DEFAULT '',
+    pinyin TEXT,
+    example TEXT,
+    source TEXT NOT NULL DEFAULT 'user',
+    ease REAL NOT NULL DEFAULT 2.5,
+    interval_days INTEGER NOT NULL DEFAULT 0,
+    reps INTEGER NOT NULL DEFAULT 0,
+    due TEXT NOT NULL,
+    lapses INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    last_review TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_flashcards_user_due ON flashcards(user_id, due);
+CREATE TABLE IF NOT EXISTS flashcard_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    card_id INTEGER NOT NULL,
+    grade INTEGER NOT NULL,
+    reviewed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_flashcard_reviews_user ON flashcard_reviews(user_id, reviewed_at);
+-- ---------------------------------------------------------------- привычки, самочувствие, дневник
+CREATE TABLE IF NOT EXISTS habits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    emoji TEXT NOT NULL DEFAULT '✅',
+    target_per_day INTEGER NOT NULL DEFAULT 1,
+    days_mask TEXT NOT NULL DEFAULT '1111111',
+    archived INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_habits_user ON habits(user_id, archived);
+CREATE TABLE IF NOT EXISTS habit_logs (
+    habit_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (habit_id, date)
+);
+CREATE TABLE IF NOT EXISTS wellbeing (
+    user_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    sleep_hours REAL,
+    sleep_quality INTEGER,
+    energy INTEGER,
+    mood INTEGER,
+    note TEXT,
+    PRIMARY KEY (user_id, date)
+);
+CREATE TABLE IF NOT EXISTS journal (
+    user_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    answers TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT,
+    PRIMARY KEY (user_id, date)
+);
+-- ---------------------------------------------------------------- геймификация
+CREATE TABLE IF NOT EXISTS xp_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    ref TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_xp_log_user ON xp_log(user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_xp_log_ref ON xp_log(user_id, reason, ref) WHERE ref IS NOT NULL;
+CREATE TABLE IF NOT EXISTS achievements (
+    user_id INTEGER NOT NULL,
+    code TEXT NOT NULL,
+    unlocked_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, code)
 );
 """
 

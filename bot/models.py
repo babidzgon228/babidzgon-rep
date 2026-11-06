@@ -226,3 +226,100 @@ class PeriodStats:
     tasks_done: int = 0
     avg_focus_score: int = 0
     best_day: date | None = None
+
+
+# ================================================================ учёба, карточки, привычки
+# (данные для bot/services/study.py, flashcards.py, habits.py, gamification.py, pomodoro.py;
+#  тексты для пользователя — в самих сервисах, в словарях {"ru","en","zh"})
+
+SUPPORTED_LANGS = ("ru", "en", "zh")
+ATTENDANCE_STATUSES = ("present", "late", "absent", "excused")   # был / опоздал / пропустил / уважительная
+FLASHCARD_GRADES = {0: "again", 1: "hard", 2: "good", 3: "easy"}
+FLASHCARD_SOURCES = ("builtin", "user")
+WELLBEING_SCALE = (1, 5)       # sleep_quality / energy / mood
+ALL_DAYS_MASK = "1111111"      # пн..вс
+
+
+@dataclass
+class AttendanceRecord:
+    """Отметка посещаемости пары за конкретную дату."""
+    user_id: int
+    lesson_id: int
+    date: date
+    status: str                          # см. ATTENDANCE_STATUSES
+    subject: str = ""                    # снимок названия предмета на момент отметки
+    marked_at: datetime | None = None
+
+
+@dataclass
+class Grade:
+    id: int
+    user_id: int
+    subject: str
+    value: float
+    max_value: float = 5.0               # 5 — пятибалльная, 100 — стобалльная и т.п.
+    weight: float = 1.0
+    kind: str = ""                       # тест / экзамен / дз / ... (свободный ключ)
+    note: str | None = None
+    date: date | None = None             # локальная дата оценки
+    created_at: datetime | None = None
+
+    @property
+    def percent(self) -> float:
+        return 100.0 * self.value / self.max_value if self.max_value else 0.0
+
+
+@dataclass
+class Flashcard:
+    """Карточка интервального повторения (SM-2, как в Anki)."""
+    id: int
+    user_id: int
+    front: str                           # иероглифы / слово
+    back: str                            # перевод
+    pinyin: str | None = None
+    example: str | None = None
+    source: str = "user"                 # builtin / user
+    ease: float = 2.5
+    interval_days: int = 0
+    reps: int = 0                        # успешных повторений подряд
+    due: date | None = None              # когда показать (локальная дата)
+    lapses: int = 0                      # сколько раз забыл
+    created_at: datetime | None = None
+    last_review: datetime | None = None
+
+
+@dataclass
+class Habit:
+    id: int
+    user_id: int
+    title: str
+    emoji: str = "✅"
+    target_per_day: int = 1
+    days_mask: str = ALL_DAYS_MASK       # 7 символов 0/1: пн..вс
+    archived: bool = False
+    created_at: datetime | None = None
+
+    def scheduled_on(self, d: date) -> bool:
+        mask = self.days_mask if len(self.days_mask) == 7 else ALL_DAYS_MASK
+        return mask[d.weekday()] == "1"
+
+
+@dataclass
+class WellbeingEntry:
+    """Сон и самочувствие за день."""
+    user_id: int
+    date: date
+    sleep_hours: float | None = None
+    sleep_quality: int | None = None     # 1..5
+    energy: int | None = None            # 1..5
+    mood: int | None = None              # 1..5
+    note: str | None = None
+
+
+@dataclass
+class JournalEntry:
+    user_id: int
+    date: date
+    answers: dict[str, str] = field(default_factory=dict)   # question_key -> текст
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

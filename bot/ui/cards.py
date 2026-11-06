@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import threading
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -47,6 +48,39 @@ MINOR = frozenset({"break", "meal", "buffer", "routine"})
 GREEN = (34, 170, 110)
 GREEN_BG = (229, 247, 238)
 GREY_BG = (234, 237, 243)
+
+# ---------------------------------------------------------------- темы (светлая / тёмная / авто)
+
+def _mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))  # type: ignore[return-value]
+
+
+_DARK_CARD = (30, 33, 45)
+_DARK_ACCENTS = {
+    "lesson": (124, 108, 255), "event": (255, 122, 89), "task": (45, 212, 191),
+    "break": (90, 190, 240), "meal": (240, 190, 60), "buffer": (150, 160, 185), "routine": (190, 120, 255),
+}
+THEMES: dict[str, dict] = {
+    "light": dict(BG=BG, CARD=CARD, CARD_DONE=CARD_DONE, INK=INK, INK_SOFT=INK_SOFT, MUTED=MUTED, LINE=LINE,
+                  SHADOW=SHADOW, GREEN=GREEN, GREEN_BG=GREEN_BG, GREY_BG=GREY_BG, PALETTE=dict(PALETTE)),
+    "dark": dict(BG=(18, 20, 28), CARD=_DARK_CARD, CARD_DONE=(25, 27, 37), INK=(236, 239, 247),
+                 INK_SOFT=(190, 196, 214), MUTED=(128, 136, 160), LINE=(52, 57, 74), SHADOW=(0, 0, 0),
+                 GREEN=(45, 212, 140), GREEN_BG=(22, 60, 46), GREY_BG=(44, 48, 62),
+                 PALETTE={k: (a, _mix(_DARK_CARD, a, 0.22)) for k, a in _DARK_ACCENTS.items()}),
+}
+_THEME_LOCK = threading.Lock()
+
+
+def resolve_theme(setting: str | None, local_hour: int) -> str:
+    """auto → светлая днём (07:00–18:59), тёмная вечером и ночью."""
+    if setting in THEMES:
+        return setting  # type: ignore[return-value]
+    return "light" if 7 <= local_hour < 19 else "dark"
+
+
+def _apply_theme(name: str) -> None:
+    globals().update(THEMES.get(name, THEMES["light"]))
+
 
 MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа",
               "сентября", "октября", "ноября", "декабря"]
@@ -360,8 +394,18 @@ def _default_subtitle(plan: DayPlan) -> str:
 
 # ---------------------------------------------------------------- публичная функция
 
-def render_day_card(plan: DayPlan, *, title: str, subtitle: str | None = None) -> bytes:
-    """PNG-картинка расписания/плана дня. Возвращает bytes PNG."""
+def render_day_card(plan: DayPlan, *, title: str, subtitle: str | None = None,
+                    theme: str = "light") -> bytes:
+    """PNG-картинка расписания/плана дня. theme: light / dark (см. resolve_theme). Возвращает bytes PNG."""
+    with _THEME_LOCK:
+        _apply_theme(theme)
+        try:
+            return _render(plan, title=title, subtitle=subtitle)
+        finally:
+            _apply_theme("light")
+
+
+def _render(plan: DayPlan, *, title: str, subtitle: str | None) -> bytes:
     k = 2
     items = sorted(plan.items, key=lambda i: (i.start, i.end))
     title = _clean(title) or "План дня"

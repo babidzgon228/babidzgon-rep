@@ -6,6 +6,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -39,7 +40,8 @@ async def main() -> None:
     await db.connect()
     ai = AIAssistant(db, config.anthropic_api_key, config.anthropic_model)
 
-    bot = Bot(config.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    session = AiohttpSession(proxy=config.telegram_proxy) if config.telegram_proxy else None
+    bot = Bot(config.bot_token, session=session, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     notifier = Notifier(bot, db, ai)
     dp = build_dispatcher(db, ai, config, notifier)
 

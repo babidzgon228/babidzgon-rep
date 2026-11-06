@@ -67,7 +67,8 @@ async def build_context(db, user: User) -> str:
     now_local = local_now(tzn)
     today = now_local.date()
     tomorrow = today + timedelta(days=1)
-    lines = ["<context>", now_line(user, now_local), next_days_line(today)]
+    lines = ["<context>", f"Язык: {getattr(s, 'lang', 'ru') or 'ru'}", now_line(user, now_local),
+             next_days_line(today)]
 
     try:
         lines.append(f"Пары сегодня: {_lessons_line(await lessons_for_date(db, user, today))}")

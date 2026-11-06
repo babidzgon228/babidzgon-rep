@@ -16,6 +16,7 @@ class Config:
     default_tz: str = "Europe/Moscow"
     db_path: str = "data/bot.db"
     timetable_path: str = "data/timetable.yaml"
+    telegram_proxy: str | None = None   # http://… или socks5://… (если Telegram заблокирован)
 
     @property
     def ai_available(self) -> bool:
@@ -36,4 +37,5 @@ def load_config() -> Config:
         default_tz=os.getenv("DEFAULT_TZ", "Europe/Moscow").strip(),
         db_path=os.getenv("DB_PATH", "data/bot.db").strip(),
         timetable_path=os.getenv("TIMETABLE_PATH", "data/timetable.yaml").strip(),
+        telegram_proxy=os.getenv("TELEGRAM_PROXY", "").strip() or None,
     )

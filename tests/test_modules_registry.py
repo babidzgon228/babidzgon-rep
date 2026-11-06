@@ -22,8 +22,9 @@ def test_menu_layout():
     flat = [m.key for r in rows for m in r]
     assert flat[:3] == ["today", "tasks", "add"] and flat[-1] == "more"
     assert all(len(r) <= 3 for r in rows) and "cycle" not in flat
-    flat2 = [m.key for r in registry.menu_layout(_user(money=False, health=False)) for m in r]
-    assert "money" not in flat2 and len(flat2) == len(flat) - 2
+    assert flat == ["today", "tasks", "add", "study", "focus", "progress", "more"]   # только готовые разделы
+    flat2 = [m.key for r in registry.menu_layout(_user(study=False)) for m in r]
+    assert "study" not in flat2 and len(flat2) == len(flat) - 1
 
 
 async def test_set_enabled(db, user):

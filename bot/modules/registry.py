@@ -26,6 +26,7 @@ class Module:
     default_on: bool = True
     menu: bool = True                           # есть кнопка в главном меню
     order: int = 100                            # порядок в меню и онбординге
+    ready: bool = False                         # есть экраны — можно показывать в меню и онбординге
     router: Callable[[], Router] | None = None
     schema: str = ""                            # CREATE TABLE IF NOT EXISTS … своих таблиц
     digest_lines: Hook | None = None            # async (db, user, d, lang, *, evening: bool) -> list[str]
@@ -45,28 +46,28 @@ def _t(ru: str, en: str, zh: str) -> dict[str, str]:
 
 CATALOG: list[Module] = [
     Module("today", "🏠", _t("Сегодня", "Today", "今天"), _t("План дня, сейчас и дальше, дайджесты",
-           "Day plan, now & next, digests", "今日计划、提醒和日报"), core=True, order=0),
+           "Day plan, now & next, digests", "今日计划、提醒和日报"), core=True, order=0, ready=True),
     Module("tasks", "✅", _t("Задачи", "Tasks", "任务"), _t("Задачи, приоритеты, матрица, канбан",
-           "Tasks, priorities, matrix, kanban", "任务、优先级、矩阵、看板"), core=True, order=1),
+           "Tasks, priorities, matrix, kanban", "任务、优先级、矩阵、看板"), core=True, order=1, ready=True),
     Module("study", "🎓", _t("Учёба", "Study", "学习"), _t("Расписание, домашки, экзамены, оценки, карточки",
-           "Timetable, homework, exams, grades, flashcards", "课表、作业、考试、成绩、闪卡"), order=10),
+           "Timetable, homework, exams, grades, flashcards", "课表、作业、考试、成绩、闪卡"), order=10, ready=True),
     Module("habits", "🔥", _t("Привычки", "Habits", "习惯"), _t("Стрики, ритуалы, челленджи, цели, дневник",
            "Streaks, rituals, challenges, goals, journal", "连续打卡、仪式、挑战、目标、日记"), order=11),
     Module("money", "💰", _t("Деньги", "Money", "钱"), _t("Траты в ¥ и ₽, бюджет, подписки, долги",
            "Spending in ¥ and ₽, budget, subscriptions, debts", "人民币/卢布支出、预算、订阅、借款"), order=12),
     Module("focus", "⏱", _t("Фокус", "Focus", "专注"), _t("Трекер времени, помодоро, фокус-румы",
-           "Time tracker, pomodoro, focus rooms", "时间记录、番茄钟、专注房间"), order=13),
+           "Time tracker, pomodoro, focus rooms", "时间记录、番茄钟、专注房间"), order=13, ready=True),
     Module("health", "💊", _t("Здоровье", "Health", "健康"), _t("Вода, сон, настроение, таблетки, спорт",
            "Water, sleep, mood, pills, workouts", "喝水、睡眠、心情、药物、运动"), order=14),
     Module("progress", "📊", _t("Прогресс", "Progress", "进度"), _t("Статистика, XP, уровни, ачивки, монетки",
-           "Stats, XP, levels, achievements, coins", "统计、经验、等级、成就、金币"), order=15),
+           "Stats, XP, levels, achievements, coins", "统计、经验、等级、成就、金币"), order=15, ready=True),
     Module("friends", "👥", _t("Друзья", "Friends", "朋友"), _t("Лидерборд, фокус-румы, общие списки",
            "Leaderboard, focus rooms, shared lists", "排行榜、专注房间、共享清单"),
            default_on=False, menu=False, order=30),
     Module("cycle", "🌸", _t("Цикл", "Cycle", "周期"), _t("Женский календарь", "Menstrual cycle tracker", "经期记录"),
            default_on=False, menu=False, order=31),
     Module("more", "⚙️", _t("Ещё", "More", "更多"), _t("Настройки, модули, экспорт, интеграции",
-           "Settings, modules, export, integrations", "设置、模块、导出、集成"), core=True, order=99),
+           "Settings, modules, export, integrations", "设置、模块、导出、集成"), core=True, order=99, ready=True),
 ]
 
 _REGISTRY: dict[str, Module] = {m.key: m for m in CATALOG}
@@ -116,7 +117,8 @@ async def set_enabled(db, user: User, key: str, on: bool) -> None:
 
 def menu_layout(user: User | None, *, cols: int = 3) -> list[list[Module]]:
     """Модули для главного меню: Сегодня, Задачи, ➕ (слот add), затем включённые хабы, «Ещё» последним."""
-    mods = [m for m in all_modules() if m.menu and (user is None and m.default_on or user and enabled(user, m.key))]
+    mods = [m for m in all_modules() if m.menu and m.ready
+            and (user is None and m.default_on or user is not None and enabled(user, m.key))]
     head = [m for m in mods if m.key in ("today", "tasks")]
     tail = [m for m in mods if m.key == "more"]
     middle = [m for m in mods if m.key not in ("today", "tasks", "more")]
